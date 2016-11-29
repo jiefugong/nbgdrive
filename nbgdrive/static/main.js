@@ -11,33 +11,40 @@ define([
                       .addClass('btn-group')
                       .addClass('pull-right')
             .append(
-                $('<strong>').text('Creating Google Drive Directory: ')
-            ).append(
-                $('<span>').attr('id', 'nbgdrive-status')
-                           .attr('title', 'Latest action performed by GDrive Extension')
+                $('<input>').attr('id', 'nbgdrive-authentication')
+                           .attr('type', 'text')
             ).append(
                 $('<button>').attr('id', 'nbgdrive-button')
                              .text('Submit')
                              .click(function() {
-                                alert ("Handler for nbdgdrive-button clicked!");
+                                // TODO: Change this button click to make a JS post request with 
+                                // the information in the input bar
+
+                                // Grey out this field or remove these items if we have already been authenticated
+                                var gdrive_auth_id = $("#nbgdrive-authentication").val();
+                                $.post(utils.get_body_data('baseUrl') + 'gauth', {message: gdrive_auth_id}, function(data) {
+                                    console.log(data);
+                                });
                              })
             )
         );
     }
 
-    var autosync_gdrive_files = function () {
+    function autosyncDriveFiles() {
+        // TODO: 
+        // replace $.getJSON with a regular get request to the driveSync URL
+        // so that we don't have to handle the data.
         $.getJSON(utils.get_body_data('baseUrl') + 'gsync', function(data) {
             var display = String(data['status']);
-            console.log ("Current text: " + display);
-            $('#nbgdrive-status').text(display);
+            console.log ("Received JSON: " + display);
         });
     }
 
-    var check_autosync_time = function () {
-        console.log ("Checking the time for autosync.");
+    function checkAutosyncTime() {
+        console.log ("Checking the current date for autosync.");
         var date = new Date();
         if (date.getHours() === 3  && date.getMinutes() === 0) {
-            autosync_gdrive_files();
+            autosyncDriveFiles();
         }
     }
 
@@ -54,50 +61,35 @@ define([
     2. Extract the URL to visit on the client side and alert it to the user
     3. Create input field w/ button, assume user will post the correct input and 
     send that as JSON to the server
-    4. Server then extracts the JSON and echoes that into gdrive about in order to authorize.
-
-    QUESTION 1: Post data with JS and extract it properly on the server side
-    QUESTION 2: Print statements work on server side to console?
-    QUESTION 3: Get data on the server side with Requests library */
+    4. Server then extracts the JSON and echoes that into gdrive about in order to authorize. */
 
 
     var load_ipython_extension = function () {
-        /* Creates an extra field for the Jupyter notebook. */
+        /* TODO: Check to see if the user has been authenticated. If not, create the display for key submission. */
+
+        /* Creates the input text and button for Drive authentication. */
         createDisplayDiv();
         
-        /* Triggers the directory to be created a single time. */
+        /* Triggers the directory to be created a single time. Assumes that authentication
+           has succeeded by now. */
         $.getJSON(utils.get_body_data('baseUrl') + 'gdrive', function(data) {
             var display = String(data['status']);
-            $('#nbgdrive-status').text(display);
+            console.log ("Received JSON: " + display);
         });
 
-        /* Create a function that checks the time every minute, autosyncs when 3 AM
-         * TODO: EXTREMELY HACKY. */
-        setInterval(check_autosync_time, 1000 * 60);
-
-        /* The below is correct. */
-        $.post(utils.get_body_data('baseUrl') + 'gresponse', {message: "Hello world!"}, function(data) {
-            console.log(data);
+        $.getJSON(utils.get_body_data('baseURL') + 'gauth', function(data) {
+            var display = String(data['hello']);
+            console.log ("Received: " + display);
         });
 
-        /* Registers a new button with the notebook. */
-        var manual_sync_handler = function () {
-            /* Make a put request to gresponse URL with entry. */
-
-            $.getJSON(utils.get_body_data('baseUrl') + 'gsync', function(data) {
-                // FIXME: Proper setups for MB and GB. MB should have 0 things
-                // after the ., but GB should have 2.
-                var display = String(data['status']);
-                console.log ("Current text: " + display);
-                $('#nbgdrive-status').text(display);
-            });
-        }
+        /* Create a function that checks the time every minute, autosyncs when 3 AM. */
+        setInterval(checkAutosyncTime, 1000 * 60);
 
         var action = {
             icon: 'fa-cloud', // a font-awesome class used on buttons, etc
             help    : 'Manually syncs the home directory with Google Drive',
             help_index : 'zz',
-            handler : manual_sync_handler
+            handler : autosyncDriveFiles
         }
 
         var prefix = 'gsync_extension';
